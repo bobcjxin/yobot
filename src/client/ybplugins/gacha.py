@@ -6,6 +6,7 @@ import random
 import re
 import sqlite3
 import time
+from functools import lru_cache
 from typing import List, Union
 from urllib.parse import urljoin
 
@@ -127,6 +128,89 @@ class Gacha:
         db_conn.close()
         return reply
 
+    @lru_cache(maxsize=256)
+    def check_ssr(self, char):
+        prop = 0.
+        for p in self._pool["pool"].values():
+            prop += p["prop"]
+        prop = prop*0.05
+        for p in self._pool["pool"].values():
+            chars = [p.get("prefix", "")+x for x in p["pool"]]
+            if char in chars and p["prop"] < prop:
+                return True
+        return False
+
+    def thirtytimes(self, qqid: int, nickname: str) -> str:
+        # self.check_ver()  # no more updating
+        db_exists = os.path.exists(os.path.join(
+            self.setting["dirname"], "collections.db"))
+        db_conn = sqlite3.connect(os.path.join(
+            self.setting["dirname"], "collections.db"))
+        db = db_conn.cursor()
+        if not db_exists:
+            db.execute(
+                '''CREATE TABLE Colle(
+                qqid INT PRIMARY KEY,
+                colle BLOB,
+                times SMALLINT,
+                last_day CHARACTER(4),
+                day_times TINYINT)''')
+        today = time.strftime("%m%d")
+        sql_info = list(db.execute(
+            "SELECT colle,times,last_day,day_times FROM Colle WHERE qqid=?", (qqid,)))
+        mem_exists = (len(sql_info) == 1)
+        if mem_exists:
+            info = pickle.loads(sql_info[0][0])
+            times, last_day, day_times = sql_info[0][1:]
+        else:
+            info = {}
+            times, last_day, day_times = 0, "", 0
+        day_limit = self._pool["settings"]["day_limit"]
+        if today != last_day:
+            last_day = today
+            day_times = 0
+        if day_limit != 0 and day_times+20 > day_limit:
+            return "{}今天剩余抽卡次数不足30次，不能抽一井".format(nickname, day_times)
+        reply = ""
+        result = ""
+        flag_fully_30_times = True
+        for i in range(1, 31):
+            if day_limit != 0 and day_times >= day_limit:
+                reply += "{}抽到第{}发十连时已经达到今日抽卡上限，抽卡结果:".format(nickname, i)
+                flag_fully_30_times = False
+                break
+            single_result = self.result()
+            times += 1
+            day_times += 1
+            for char in single_result:
+                if char in info:
+                    info[char] += 1
+                    if self.check_ssr(char):
+                        result += "\n{}({})".format(char, info[char])
+                else:
+                    info[char] = 1
+                    if self.check_ssr(char):
+                        result += "\n{}(new)".format(char)
+        sql_info = pickle.dumps(info)
+        if mem_exists:
+            db.execute("UPDATE Colle SET colle=?, times=?, last_day=?, day_times=? WHERE qqid=?",
+                       (sql_info, times, last_day, day_times, qqid))
+        else:
+            db.execute("INSERT INTO Colle (qqid,colle,times,last_day,day_times) VALUES(?,?,?,?,?)",
+                       (qqid, sql_info, times, last_day, day_times))
+        if not result:
+            if flag_fully_30_times:
+                reply += "\n{}太非了，本次下井没有抽到ssr。".format(nickname)
+            else:
+                reply += "\n本次没有抽到ssr。".format(nickname)
+            return reply
+        if flag_fully_30_times:
+            reply += "{}本次下井结果：".format(nickname)
+        reply += result
+        db_conn.commit()
+        db_conn.close()
+        return reply
+
     async def show_colleV2_async(self, qqid, nickname, cmd: Union[None, str] = None) -> str:
         if not os.path.exists(os.path.join(self.setting["dirname"], "collections.db")):
             return "没有仓库"
@@ -139,8 +223,8 @@ class Gacha:
         db = db_conn.cursor()
         sql_info = list(db.execute(
             "SELECT colle FROM Colle WHERE qqid=?", (qqid,)))
-        db_conn.close()
         if len(sql_info) != 1:
+            db_conn.close()
             return nickname + "的仓库为空"
         colle = pickle.loads(sql_info[0][0])
         more_colle = []
@@ -148,8 +232,10 @@ class Gacha:
             sql_info = list(db.execute(
                 "SELECT colle FROM Colle WHERE qqid=?", (other_qq,)))
             if len(sql_info) != 1:
-                return "[CQ:at,qq={}]的仓库为空".format(other_qq)
+                db_conn.close()
+                return "[CQ:at,qq={}] 的仓库为空".format(other_qq)
             more_colle.append(pickle.loads(sql_info[0][0]))
+        db_conn.close()
         if not os.path.exists(os.path.join(self.setting["dirname"], "temp")):
             os.mkdir(os.path.join(self.setting["dirname"], "temp"))
         showed_colle = set(colle)
@@ -159,7 +245,7 @@ class Gacha:
         showdata["header"] = ["角色", nickname]
         for memb in moreqq_list:
             try:
-                membinfo = await self.bot_api.get_stranger_info(memb)
+                membinfo = await self.bot_api.get_stranger_info(user_id=memb)
                 showdata["header"].append(membinfo["nickname"])
             except:
                 showdata["header"].append(str(memb))
@@ -218,6 +304,8 @@ class Gacha:
             return 4
         elif cmd == "在线十连" or cmd == "在线抽卡":
             return 5
+        elif cmd == "抽一井" or cmd == "来一井":
+            return 6
         else:
             return 0
 
@@ -236,6 +324,10 @@ class Gacha:
             reply = None
         elif func_num == 1:
             reply = self.gacha(
+                qqid=msg["sender"]["user_id"],
+                nickname=msg["sender"]["card"])
+        elif func_num == 6:
+            reply = self.thirtytimes(
                 qqid=msg["sender"]["user_id"],
                 nickname=msg["sender"]["card"])
         elif func_num == 4:

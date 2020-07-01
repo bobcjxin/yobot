@@ -8,7 +8,7 @@
 
 如果坚持在本地计算机运行，也可以使用内网穿透（不建议新手使用）
 
-### 方法 1：直接连接（最简单）
+### 方法 1：直接连接
 
 在 yobot [配置文件](./configuration.md)中，将`host`字段恢复为`0.0.0.0`（即默认值，如果没有手动修改过就不用管）
 
@@ -16,16 +16,21 @@
 （[阿里云开启方法](https://help.aliyun.com/document_detail/25471.html) [腾讯云开启方法](https://cloud.tencent.com/document/product/213/39740)）
 如果是腾讯云 Windows 服务器，可能还需要放行 Windows 防火墙
 
-如果服务器没有公网地址，可以使用端口映射
+由于不同的服务器提供商所需的步骤不同，所以具体方法请通过搜索引擎搜索：【你的提供商+你的操作系统+如何开放端口】
+
+由于需要和yobot插件版兼容，默认路由设置为/yobot，直接访问根目录会产生405错误。
+如果您没有修改路径，请通过 `http://您的公网IP:yobot运行的端口/yobot/` 进行访问。
+e.g. `http://10.10.10.10:9222/yobot/`
 
 ::: warning
 
-- 如果使用这种方法，**必须**为 httpapi 和 yobot 设定 access_token 防止入侵
-- 此方式无法使用https，仍存在被劫持的可能（[了解更多](https://baike.baidu.com/item/https/285356)）
+如果使用这种方法，**必须**为 httpapi 和 yobot 设定 access_token 防止入侵
 
 :::
 
 ### 方法 2：使用 Nginx 代理（功能最强）
+
+Windows 用户可以使用配置好的[Nginx 预配置包](./windows-nginx-package.md)。
 
 如果需要为网页添加日志记录、HTTPS支持、安全限制等，或者需要同时部署其他站点，可以使用 Nginx、Apache 之类的服务器软件
 
@@ -64,13 +69,14 @@ server {
 
   ## 输出文件直接访问（可选，性能）
   #location /yobot/output/ {
-  #  alias /home/yobot/src/client/output/;  # 你的输出文件目录，如果你修改了`public_basepath`，请同时修改这里的`location`
+  #  alias /home/yobot/src/client/yobot_data/output/;  # 你的输出文件目录，如果你修改了`public_basepath`，请同时修改这里的`location`
+  #  charset utf-8;  # 设置 HTTP 响应的字符集避免页面出现乱码
   #  expires 30d;
   #}
 
   # 阻止酷Q接口被访问(可选，安全)
   location /ws/ {
-    # allow 172.16.0.0/12;  # 允许酷Q通过（yobot与酷Q不在同一个服务器上时使用）
+    # allow 172.16.0.0/12;  # 允许酷Q通过（yobot与酷Q不在同一个服务器上时使用，ip为酷Q所在服务器的ip）
     deny all;
   }
 }
@@ -88,7 +94,7 @@ server {
     Order Deny, Allow
     Allow from All
   </Proxy>
-  <Location /yobot/>  # 反向代理，如果你修改了`public_basepath`，请同时修改这里的`location`
+  <Location />  # 反向代理
     ProxyPass http://localhost:9222/
     ProxyPassReverse http://localhost:9222/
   </Location>
@@ -104,6 +110,8 @@ server {
 ## 开始使用 Web 模式
 
 向机器人私聊发送“登录”即可
+
+如果需要密码，向机器人私聊发送“重置密码”即可\(3.5.6+\)
 
 开启 Web 模式后，可以使用[新版公会战](./web-clanbattle.md)
 
