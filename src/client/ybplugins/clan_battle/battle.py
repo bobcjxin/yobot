@@ -60,6 +60,7 @@ class ClanBattle:
         '查3': 23,
         '查4': 24,
         '查5': 25,
+        '查档线': 30
     }
 
     Server = {
@@ -329,6 +330,13 @@ class ClanBattle:
                 or group.challenging_member_qq_id
             )
         return boss_summary
+
+    def query_damage_line(self):
+        """
+
+        :return:
+        """
+        pass
 
     def challenge(self,
                   group_id: Groupid,
@@ -609,28 +617,6 @@ class ClanBattle:
                 'record_count': c.record_count,
             })
         return counts
-
-    # def new_data_slot(self, group_id: Groupid):
-    #     """
-    #     creat new new_data_slot for challenge data and reset boss status.
-
-    #     challenge data should be backuped and comfirm and
-    #     permission should be checked before this function is called.
-
-    #     Args:
-    #         group_id: group id
-    #     """
-    #     group = Clan_group.get_or_none(group_id=group_id)
-    #     if group is None:
-    #         raise GroupNotExist
-    #     group.boss_cycle = 1
-    #     group.boss_num = 1
-    #     group.boss_health = self.bossinfo[group.game_server][0][0]
-    #     group.battle_id += 1
-    #     group.save()
-    #     Clan_subscribe.delete().where(
-    #         Clan_subscribe.gid == group_id,
-    #     ).execute()
 
     def clear_data_slot(self, group_id: Groupid, battle_id: Optional[int] = None):
         """
@@ -1430,6 +1416,8 @@ class ClanBattle:
                 if m.get('message'):
                     reply += '：' + m['message']
             return reply
+        elif match_num == 30:
+            pass
 
     def register_routes(self, app: Quart):
 
