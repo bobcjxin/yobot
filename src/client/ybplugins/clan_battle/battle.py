@@ -320,7 +320,8 @@ class ClanBattle:
             raise GroupNotExist
         boss_summary = (
             f'现在{group.boss_cycle}周目，{group.boss_num}号boss\n'
-            f'生命值{group.boss_health:,}'
+            f'生命值{group.boss_health:,}\n'
+            f'当前极限合刀伤害为{group.boss_health*8/9/10000:.1f}W,可白嫖{group.boss_health/90000:1.f}W血'
         )
         if group.challenging_member_qq_id is not None:
             boss_summary += '\n{}正在挑战boss'.format(
