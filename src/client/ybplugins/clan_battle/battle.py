@@ -1,13 +1,16 @@
 import asyncio
+from datetime import datetime
 import logging
 import os
 import random
 import re
 import time
+import json
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import peewee
+import aiohttp
 from aiocqhttp.api import Api
 from apscheduler.triggers.cron import CronTrigger
 from quart import (Quart, jsonify, make_response, redirect, request, session,
@@ -20,7 +23,7 @@ from ..ybdata import (Clan_challenge, Clan_group, Clan_member, Clan_subscribe,
 from .exception import (
     ClanBattleError, GroupError, GroupNotExist, InputError, UserError,
     UserNotInGroup)
-from .typing import BossStatus, ClanBattleReport, Groupid, Pcr_date, QQid
+from .clan_typing import BossStatus, ClanBattleReport, Groupid, Pcr_date, QQid
 from .util import atqq, pcr_datetime, pcr_timestamp, timed_cached_func
 
 _logger = logging.getLogger(__name__)
@@ -331,12 +334,47 @@ class ClanBattle:
             )
         return boss_summary
 
-    def query_damage_line(self):
+    async def _async_post(self, url: str):
         """
-
+        异步post请求
         :return:
         """
-        pass
+        headers = {
+            "Content-Length": "0",
+            "Host": "service-kjcbcnmw-1254119946.gz.apigw.tencentcs.com",
+            "Referer": "https://kengxxiao.github.io/Kyouka/"}
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, verify_ssl=False) as res:
+                return await res.json(content_type='text/plain')
+
+    def query_clan_line(self) -> str:
+        """
+        返回公会战档线
+        :return:
+        """
+        url = "https://service-kjcbcnmw-1254119946.gz.apigw.tencentcs.com/line"
+
+        loop = asyncio.get_event_loop()
+        task = loop.create_task(self._async_post(url))
+        loop.run_until_complete(task)
+        loop.close()
+
+        data = task.result()
+
+        def schedule(d: int) -> str:
+            hp = [6000000, 8000000, 10000000, 12000000, 20000000]
+            n = d//56000000+1
+            m = d % 56000000
+            for i in range(len(hp)):
+                if m < hp[i]:
+                    break
+                m -= hp[i]
+            return f"{n}周目{i+1}王[{hp[i]-m}/{hp[i]}]"
+
+        res = f'{"排名":<8}{"公会名":<20}进度\n'.join(
+            [f'{d["rank"]:<8}{d["clan_name"]:<20}{schedule(d["damage"])}\n' for d in data['data']])
+
+        return res
 
     def challenge(self,
                   group_id: Groupid,
@@ -1417,7 +1455,7 @@ class ClanBattle:
                     reply += '：' + m['message']
             return reply
         elif match_num == 30:
-            pass
+            return self.query_clan_line()
 
     def register_routes(self, app: Quart):
 
@@ -2151,3 +2189,7 @@ class ClanBattle:
             return await render_template(
                 'clan/progress.html',
             )
+
+
+if __name__ == "__main__":
+    ClanBattle.query_clan_line()

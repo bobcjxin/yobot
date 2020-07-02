@@ -5,7 +5,7 @@ from typing import Tuple, Union
 
 from expiringdict import ExpiringDict
 
-from .typing import Pcr_date, Pcr_time
+from .clan_typing import Pcr_date, Pcr_time
 
 pcr_time_offset = {
     "jp": 4,
