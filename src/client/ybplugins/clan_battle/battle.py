@@ -369,7 +369,7 @@ class ClanBattle:
                 if m < hp[i]:
                     break
                 m -= hp[i]
-            return f"{n}周目{i+1}王[{hp[i]-m}/{hp[i]}]"
+            return f"{n}周目{i+1}王 [{hp[i]-m}/{hp[i]}]"
 
         res = f'{"排名":<8}{"公会名":<20}进度\n'.join(
             [f'{d["rank"]:<8}{d["clan_name"]:<20}{schedule(d["damage"])}\n' for d in data['data']])
