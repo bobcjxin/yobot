@@ -1461,7 +1461,8 @@ class ClanBattle:
                     reply += '：' + m['message']
             return reply
         elif match_num == 30:
-            return self.query_clan_line()
+            a = self.query_clan_line()
+            return "test"+a
 
     def register_routes(self, app: Quart):
 
