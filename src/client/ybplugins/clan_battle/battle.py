@@ -363,16 +363,22 @@ class ClanBattle:
 
         def schedule(d: int) -> str:
             hp = [6000000, 8000000, 10000000, 12000000, 20000000]
-            n = d//56000000+1
-            m = d % 56000000
-            for i in range(len(hp)):
-                if m < hp[i]:
-                    break
-                m -= hp[i]
-            return f"{n}周目{i+1}王 [{hp[i]-m}/{hp[i]}]"
+            rate = [
+                [1, 1, 1.1, 1.1, 1.2],
+                [1.2, 1.2, 1.5, 1.7, 2],
+            ]
+            loop = 0
+            while d >= 0:
+                for i in range(len(hp)):
+                    d -= hp[i] * rate[[0, 1][loop > 0]][i]
+                    if d < 0:
+                        break
+                loop += 1
 
-        res = f'{"排名":<8}{"公会名":<20}进度\n'.join(
-            [f'{d["rank"]:<8}{d["clan_name"]:<20}{schedule(d["damage"])}\n' for d in data['data']])
+            return f"{loop}周目{i + 1}王 [{-d / rate[[0, 1][loop > 0]][i]:.0f}/{hp[i]}]"
+
+        res = f'{"排名":<6}{"进度":<26}公会名\n' + "".join(
+            [f'{d["rank"]:<7}{schedule(d["damage"]):<26}{d["clan_name"]}\n' for d in data['data']])
 
         return res
 
