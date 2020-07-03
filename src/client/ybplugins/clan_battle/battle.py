@@ -4,12 +4,14 @@ import logging
 import os
 import random
 import re
+import requests
 import time
 import json
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 import peewee
+import pymongo
 import aiohttp
 from aiocqhttp.api import Api
 from apscheduler.triggers.cron import CronTrigger
@@ -63,7 +65,9 @@ class ClanBattle:
         '查3': 23,
         '查4': 24,
         '查5': 25,
-        '查档': 30
+        '查档': 10000,
+        '写轴': 10001,
+        '轴1': 10002,
     }
 
     Server = {
@@ -347,6 +351,18 @@ class ClanBattle:
             async with session.post(url, headers=headers, verify_ssl=False) as res:
                 return await res.json(content_type='text/plain')
 
+    def _post(self, url: str, data: Optional[dict] = None):
+        """
+        同步post请求
+        :return:
+        """
+        headers = {
+            "Content-Length": "0",
+            "Host": "service-kjcbcnmw-1254119946.gz.apigw.tencentcs.com",
+            "Referer": "https://kengxxiao.github.io/Kyouka/"}
+        res = requests.post(url, headers=headers, json=data)
+        return res.json()
+
     def query_clan_line(self) -> str:
         """
         返回公会战档线
@@ -354,12 +370,7 @@ class ClanBattle:
         """
         url = "https://service-kjcbcnmw-1254119946.gz.apigw.tencentcs.com/line"
 
-        loop = asyncio.get_event_loop()
-        task = loop.create_task(self._async_post(url))
-        loop.run_until_complete(task)
-        loop.close()
-
-        data = task.result()
+        data = self._post(url, {"history": 0})
 
         def schedule(d: int) -> str:
             hp = [6000000, 8000000, 10000000, 12000000, 20000000]
@@ -1460,9 +1471,8 @@ class ClanBattle:
                 if m.get('message'):
                     reply += '：' + m['message']
             return reply
-        elif match_num == 30:
-            a = self.query_clan_line()
-            return "test"+a
+        elif match_num == 10000:
+            return self.query_clan_line()
 
     def register_routes(self, app: Quart):
 
